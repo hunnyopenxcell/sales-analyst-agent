@@ -17,10 +17,10 @@ st.set_page_config(
 # Load secrets from Streamlit's secrets management
 try:
     # openai.api_key = st.secrets["OPENAI_API_KEY"]
-    SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
-    SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
-    SMTP_SERVER = st.secrets["SMTP_SERVER"]
-    SMTP_PORT = st.secrets["SMTP_PORT"]
+    SENDER_EMAIL = st.secrets["email"]["SENDER_EMAIL"]
+    SENDER_PASSWORD = st.secrets["email"]["SENDER_PASSWORD"]
+    SMTP_SERVER = st.secrets["email"]["SMTP_SERVER"]
+    SMTP_PORT = st.secrets["email"]["SMTP_PORT"]
 except KeyError:
     st.error("ERROR: OpenAI or Email credentials are not set in st.secrets.")
     st.stop()
@@ -186,7 +186,7 @@ def get_ai_recommendations_for_email(rep_id, top_customers, bottom_customers):
     """
 
     try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        client = OpenAI(api_key=st.secrets["openai"]["OPENAI_API_KEY"])
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
