@@ -137,6 +137,7 @@ env.bak/
 venv.bak/
 .cursor/
 .idea/
+.streamlit/
 
 # Spyder project settings
 .spyderproject
