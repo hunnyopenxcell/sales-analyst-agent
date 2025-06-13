@@ -23,7 +23,7 @@ This is an AI-powered Streamlit application designed to analyze sales representa
 ### 1. Prerequisites
 
 - Python 3.8+
-- An active OpenAI API key.
+- An active Google API key with the Gemini API enabled.
 - An email account (e.g., Gmail) configured for SMTP access.
 
 ### 2. Clone the Repository
@@ -77,8 +77,8 @@ Add the following content to `secrets.toml` and replace the placeholder values w
 ```toml
 # .streamlit/secrets.toml
 
-# OpenAI API Key
-OPENAI_API_KEY = "your-openai-api-key"
+# Google API Key for Gemini
+GOOGLE_API_KEY = "your-google-api-key"
 
 # Email Configuration
 SENDER_EMAIL = "your-email@example.com"
@@ -91,28 +91,4 @@ SMTP_PORT = 587
 
 Once the setup is complete, you can run the Streamlit application with the following command:
 
-```bash
-streamlit run app.py
 ```
-
-The application will open in your default web browser.
-
-## File Structure
-
-```
-.
-├── sales_reps_data/
-│   ├── TP Sales Data - D2B Jan to May 2024.xlsx
-│   ├── TP Sales Data - D2B Jan to May 2025.xlsx
-│   └── ... (other data files)
-├── .streamlit/
-│   └── secrets.toml
-├── app.py
-├── requirements.txt
-└── README.md
-```
-- **`app.py`**: The main Streamlit application file containing all the logic.
-- **`requirements.txt`**: A list of Python libraries required for the project.
-- **`sales_reps_data/`**: Directory containing the input sales data files.
-- **`.streamlit/secrets.toml`**: The configuration file for storing secrets like API keys and email credentials.
-- **`README.md`**: This file.

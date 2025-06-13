@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from openai import OpenAI
+import google.generativeai as genai
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,13 +16,18 @@ st.set_page_config(
 # --- AI & Email Configuration ---
 # Load secrets from Streamlit's secrets management
 try:
-    # openai.api_key = st.secrets["OPENAI_API_KEY"]
+    # Configure the Gemini API key
+    genai.configure(api_key=st.secrets["gemini"]["GEMINI_API_KEY"])
+
     SENDER_EMAIL = st.secrets["email"]["SENDER_EMAIL"]
     SENDER_PASSWORD = st.secrets["email"]["SENDER_PASSWORD"]
     SMTP_SERVER = st.secrets["email"]["SMTP_SERVER"]
     SMTP_PORT = st.secrets["email"]["SMTP_PORT"]
-except KeyError:
-    st.error("ERROR: OpenAI or Email credentials are not set in st.secrets.")
+except KeyError as e:
+    st.error(f"ERROR: Missing secret: '{e.args[0]}'. Please check your .streamlit/secrets.toml file.")
+    st.stop()
+except Exception as e:
+    st.error(f"ERROR: Could not configure Gemini API. Please check your GOOGLE_API_KEY. Details: {e}")
     st.stop()
 
 
@@ -186,19 +191,11 @@ def get_ai_recommendations_for_email(rep_id, top_customers, bottom_customers):
     """
 
     try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful sales analyst assistant specialized in writing performance emails."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1000
-        )
-        return response.choices[0].message.content
+        model = genai.GenerativeModel(st.secrets["gemini"]["GEMINI_API_MODEL"])
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        st.error(f"Error calling OpenAI API: {e}")
+        st.error(f"Error calling Google Gemini API: {e}")
         return "Could not generate AI recommendations due to an API error."
 
 
