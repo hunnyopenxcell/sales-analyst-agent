@@ -186,7 +186,7 @@ def get_ai_recommendations_for_email(rep_id, top_customers, bottom_customers):
     """
 
     try:
-        client = OpenAI(api_key=st.secrets["openai"]["OPENAI_API_KEY"])
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
