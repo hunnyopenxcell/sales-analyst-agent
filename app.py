@@ -199,6 +199,25 @@ def get_ai_recommendations_for_email(rep_id, top_customers, bottom_customers):
         return "Could not generate AI recommendations due to an API error."
 
 
+def get_chat_response(prompt, chat_history):
+    """Generates a response from the AI for the chat interface."""
+    try:
+        model = genai.GenerativeModel(st.secrets["gemini"]["GEMINI_API_MODEL"])
+        # The history is a list of dictionaries, we need to format it for the model
+        full_prompt = f"""
+        Here is the conversation history:
+        {chat_history}
+
+        Here is the user's latest message:
+        {prompt}
+        """
+        response = model.generate_content(full_prompt)
+        return response.text
+    except Exception as e:
+        st.error(f"Error calling Google Gemini API: {e}")
+        return "Could not get a response due to an API error."
+
+
 # --- Email Function ---
 def send_email(recipient_email, subject, body):
     """Sends an email with the analysis and recommendations."""
@@ -243,120 +262,158 @@ selected_source = st.sidebar.radio(
     on_change=clear_state_on_source_change # Important to reset state
 )
 
+# Initialize view state
+if 'view' not in st.session_state:
+    st.session_state['view'] = 'analysis'
+
 # Load data based on the selected source
 data = load_data(selected_source)
 
 
-if data is not None:
-    st.header(f"Analyze Performance for Channel: {selected_source}")
-    sales_reps = sorted(data['Zone'].unique())
+def render_analysis_view():
+    """Renders the main analysis view of the application."""
+    if data is not None:
+        st.header(f"Analyze Performance for Channel: {selected_source}")
+        sales_reps = sorted(data['Zone'].unique())
 
-    if 'selected_rep' not in st.session_state:
-        st.session_state['selected_rep'] = None
+        if 'selected_rep' not in st.session_state:
+            st.session_state['selected_rep'] = None
 
-    for rep in sales_reps:
-        if st.button(f"Analyze {rep}", key=rep):
-            st.session_state['selected_rep'] = rep
-            # Clear all previous results when switching reps
-            for key in list(st.session_state.keys()):
-                if key not in ['selected_rep', 'data_source']:
-                    del st.session_state[key]
+        for rep in sales_reps:
+            if st.button(f"Analyze {rep}", key=rep):
+                st.session_state['selected_rep'] = rep
+                # Clear all previous results when switching reps
+                for key in list(st.session_state.keys()):
+                    if key not in ['selected_rep', 'data_source', 'view']:
+                        del st.session_state[key]
 
-    if st.session_state.get('selected_rep') is not None:
-        selected_rep = st.session_state['selected_rep']
-        st.markdown("---")
-        st.header(f"📈 Performance Analysis for: {selected_rep}")
+        if st.session_state.get('selected_rep') is not None:
+            selected_rep = st.session_state['selected_rep']
+            st.markdown("---")
+            st.header(f"📈 Performance Analysis for: {selected_rep}")
 
-        # --- Overall Performance Section ---
-        st.subheader("Overall Performance (Jan-May 2025)")
-        st.markdown("This section analyzes total sales volume for 2025 to identify top and bottom customers and automatically emails the summary to the rep.")
+            # --- Overall Performance Section ---
+            st.subheader("Overall Performance (Jan-May 2025)")
+            st.markdown("This section analyzes total sales volume for 2025 to identify top and bottom customers and automatically emails the summary to the rep.")
 
-        # Button to trigger analysis and email
-        if st.button(f"🚀 Analyze Overall Performance & Auto-Send Email", key=f"overall_{selected_rep}"):
-            with st.spinner(f"Analyzing overall data for {selected_rep}..."):
-                top_3, bottom_3, yoy_df = get_overall_analysis(data, selected_rep)
-                # Store results in session state
-                st.session_state['top_3'] = top_3
-                st.session_state['bottom_3'] = bottom_3
-                st.session_state['yoy_df'] = yoy_df
-                st.session_state['overall_analysis_run_for'] = selected_rep
+            if st.button(f"🚀 Analyze Overall Performance & Auto-Send Email", key=f"overall_{selected_rep}"):
+                with st.spinner(f"Analyzing overall data for {selected_rep}..."):
+                    top_3, bottom_3, yoy_df = get_overall_analysis(data, selected_rep)
+                    st.session_state['top_3'] = top_3
+                    st.session_state['bottom_3'] = bottom_3
+                    st.session_state['yoy_df'] = yoy_df
+                    st.session_state['overall_analysis_run_for'] = selected_rep
 
-            if top_3 is not None and not top_3.empty:
-                with st.spinner("🤖 AI generating email content..."):
-                    ai_email_content = get_ai_recommendations_for_email(selected_rep, top_3, bottom_3)
-                    st.session_state['ai_email_content'] = ai_email_content
+                if top_3 is not None and not top_3.empty:
+                    with st.spinner("🤖 AI generating email content..."):
+                        ai_email_content = get_ai_recommendations_for_email(selected_rep, top_3, bottom_3)
+                        st.session_state['ai_email_content'] = ai_email_content
 
-                with st.spinner("📧 Automatically sending email..."):
-                    rep_email_map = {"D2B": "salesrep.d2b@example.com"}
-                    rep_email = rep_email_map.get(selected_rep, "default.rep@example.com")
-                    email_subject = f"Your Performance Review & Recommendations: {selected_rep}"
-                    full_email_body = f"Hi {selected_rep},\n\nHere is your performance summary and some recommendations from our analytics system.\n\n---\n\n{st.session_state['ai_email_content']}"
+                    with st.spinner("📧 Automatically sending email..."):
+                        rep_email_map = {"D2B": "salesrep.d2b@example.com"}
+                        rep_email = rep_email_map.get(selected_rep, "default.rep@example.com")
+                        email_subject = f"Your Performance Review & Recommendations: {selected_rep}"
+                        full_email_body = f"Hi {selected_rep},\n\nHere is your performance summary and some recommendations from our analytics system.\n\n---\n\n{st.session_state['ai_email_content']}"
+                        st.success(f"Email with recommendations has been automatically sent to {rep_email} (Sending is disabled in this demo).")
+                else:
+                    st.error(f"No 2025 data found for Sales Rep {selected_rep} to generate an analysis.")
 
-                    # Note: Email sending is commented out for demonstration.
-                    # Uncomment the line below to enable it.
-                    # send_email(rep_email, email_subject, full_email_body)
-                    st.success(f"Email with recommendations has been automatically sent to {rep_email} (Sending is disabled in this demo).")
-            else:
-                st.error(f"No 2025 data found for Sales Rep {selected_rep} to generate an analysis.")
+            if st.session_state.get('overall_analysis_run_for') == selected_rep:
+                st.subheader("Performance Snapshot")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.success("Top 3 Customers (by Volume)")
+                    st.dataframe(st.session_state.get('top_3', pd.Series(dtype='float64')))
+                with col2:
+                    st.warning("Bottom 3 Customers (by Volume)")
+                    st.dataframe(st.session_state.get('bottom_3', pd.Series(dtype='float64')))
 
-        # Display cached results if they exist for the current rep
-        if st.session_state.get('overall_analysis_run_for') == selected_rep:
-            st.subheader("Performance Snapshot")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.success("Top 3 Customers (by Volume)")
-                st.dataframe(st.session_state.get('top_3', pd.Series(dtype='float64')))
-            with col2:
-                st.warning("Bottom 3 Customers (by Volume)")
-                st.dataframe(st.session_state.get('bottom_3', pd.Series(dtype='float64')))
+                if 'ai_email_content' in st.session_state:
+                    st.subheader("💡 AI-Generated Recommendations (Email Preview)")
+                    st.markdown(st.session_state['ai_email_content'])
 
-            # st.subheader("Year-over-Year (YoY) Growth Analysis")
-            # st.dataframe(st.session_state.get('yoy_df', pd.DataFrame()), use_container_width=True)
+                    # "Chat Now" button to switch to chat view
+                    if st.button("💬 Chat Now", key="chat_now"):
+                        st.session_state['view'] = 'chat'
+                        # Initialize chat history with the analysis
+                        if 'chat_history' not in st.session_state:
+                            st.session_state['chat_history'] = []
+                        initial_prompt = f"Here is the analysis for {selected_rep}:\n\n{st.session_state['ai_email_content']}"
+                        st.session_state.chat_history.append({"role": "user", "content": f"Start of analysis for {selected_rep}"})
+                        st.session_state.chat_history.append({"role": "assistant", "content": initial_prompt})
+                        st.rerun()
 
-            if 'ai_email_content' in st.session_state:
-                st.subheader("💡 AI-Generated Recommendations (Email Preview)")
-                st.markdown(st.session_state['ai_email_content'])
+            # --- Intra-Month Performance Section ---
+            st.markdown("---")
+            st.subheader("📅 Intra-Month Performance Comparison")
+            st.markdown("Use this interactive tool to compare sales volume up to a specific day of the month against the same period last year. This does **not** trigger an email.")
+            month_name_to_num = {
+                "January": 1, "February": 2, "March": 3, "April": 4, "May": 5
+            }
+            selected_month_name = st.selectbox(
+                "Select a month to analyze",
+                options=list(month_name_to_num.keys()),
+                key=f"month_select_{selected_rep}"
+            )
+            analysis_month = month_name_to_num[selected_month_name]
+            analysis_year = 2025
+            col1, col2, col3, _ = st.columns([1, 1, 1, 2])
+            analysis_day = 0
+            if col1.button("Analyze up to 10th", key=f"10th_{selected_rep}"):
+                analysis_day = 10
+            if col2.button("Analyze up to 20th", key=f"20th_{selected_rep}"):
+                analysis_day = 20
+            if col3.button("Analyze up to 30th", key=f"30th_{selected_rep}"):
+                analysis_day = 30
+            if analysis_day > 0:
+                st.session_state['analysis_day'] = analysis_day
+                st.session_state['selected_month_name'] = selected_month_name
+                reference_date = datetime(analysis_year, analysis_month, analysis_day)
+                with st.spinner(f"Analyzing data for {selected_rep} for {selected_month_name} up to day {analysis_day}..."):
+                    analysis_df = get_date_based_analysis(data, selected_rep, reference_date)
+                    st.session_state['date_analysis_df'] = analysis_df
+                    st.session_state['date_analysis_run_for'] = selected_rep
+            if st.session_state.get('date_analysis_run_for') == selected_rep and 'date_analysis_df' in st.session_state:
+                display_month = st.session_state.get('selected_month_name', 'the selected month')
+                display_day = st.session_state.get('analysis_day', '')
+                st.markdown(f"**Comparison for month of {display_month} up to day {display_day}**")
+                st.dataframe(st.session_state['date_analysis_df'], use_container_width=True)
 
-        # --- Intra-Month Performance Section ---
-        st.markdown("---")
-        st.subheader("📅 Intra-Month Performance Comparison")
-        st.markdown("Use this interactive tool to compare sales volume up to a specific day of the month against the same period last year. This does **not** trigger an email.")
 
-        # Let's provide a dropdown for the months available in the data (Jan-May)
-        month_name_to_num = {
-            "January": 1, "February": 2, "March": 3, "April": 4, "May": 5
-        }
-        selected_month_name = st.selectbox(
-            "Select a month to analyze",
-            options=list(month_name_to_num.keys()),
-            key=f"month_select_{selected_rep}"
-        )
+def render_chat_view():
+    """Renders the chat interface for follow-up questions."""
+    st.header(f"Chat with AI about {st.session_state.get('selected_rep', 'the analysis')}")
 
-        analysis_month = month_name_to_num[selected_month_name]
-        analysis_year = 2025
+    if st.button("⬅️ Back to Analysis"):
+        st.session_state['view'] = 'analysis'
+        st.rerun()
 
-        col1, col2, col3, _ = st.columns([1, 1, 1, 2])
-        analysis_day = 0
-        if col1.button("Analyze up to 10th", key=f"10th_{selected_rep}"):
-            analysis_day = 10
-        if col2.button("Analyze up to 20th", key=f"20th_{selected_rep}"):
-            analysis_day = 20
-        if col3.button("Analyze up to 30th", key=f"30th_{selected_rep}"):
-            analysis_day = 30
+    # Display chat history
+    if 'chat_history' in st.session_state:
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-        if analysis_day > 0:
-            # Store the day and month name for consistent display after rerun
-            st.session_state['analysis_day'] = analysis_day
-            st.session_state['selected_month_name'] = selected_month_name
+    # Chat input
+    if prompt := st.chat_input("Ask a follow-up question..."):
+        # Add user message to history
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-            reference_date = datetime(analysis_year, analysis_month, analysis_day)
-            with st.spinner(f"Analyzing data for {selected_rep} for {selected_month_name} up to day {analysis_day}..."):
-                analysis_df = get_date_based_analysis(data, selected_rep, reference_date)
-                st.session_state['date_analysis_df'] = analysis_df
-                st.session_state['date_analysis_run_for'] = selected_rep
+        # Get AI response
+        with st.spinner("AI is thinking..."):
+            # Prepare a simplified history string for the prompt
+            history_str = "\n".join([f'{m["role"].title()}: {m["content"]}' for m in st.session_state.chat_history])
+            ai_response = get_chat_response(prompt, history_str)
+            
+            # Add AI response to history and display it
+            st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
+            with st.chat_message("assistant"):
+                st.markdown(ai_response)
 
-        if st.session_state.get('date_analysis_run_for') == selected_rep and 'date_analysis_df' in st.session_state:
-            display_month = st.session_state.get('selected_month_name', 'the selected month')
-            display_day = st.session_state.get('analysis_day', '')
-            st.markdown(f"**Comparison for month of {display_month} up to day {display_day}**")
-            st.dataframe(st.session_state['date_analysis_df'], use_container_width=True)
+# --- Main App Router ---
+if st.session_state['view'] == 'analysis':
+    render_analysis_view()
+elif st.session_state['view'] == 'chat':
+    render_chat_view()
