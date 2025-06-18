@@ -1,0 +1,12 @@
+[server]
+# Hides the "Deploy" button and "Fork on GitHub" menu item.
+# Also simplifies the "Settings" menu.
+headless = true
+
+[client]
+# Hides the "Report a Bug" and "About" menu items.
+showErrorDetails = false
+
+[ui]
+# This will hide the entire top-right menu.
+hideTopBar = true
