@@ -239,6 +239,14 @@ def send_email(recipient_email, subject, body):
 
 
 # --- Main Streamlit App ---
+# Use this to hide the footer and hamburger menu
+hide_st_style = """
+            <style>
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
 st.title("📊 Sales Representative Performance Dashboard")
 st.markdown("An AI-powered tool to analyze sales performance and generate actionable insights.")
 
