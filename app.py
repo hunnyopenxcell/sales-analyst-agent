@@ -333,7 +333,7 @@ def render_analysis_view():
                     st.markdown(st.session_state['ai_email_content'])
 
                     # "Chat Now" button to switch to chat view
-                    if st.button("💬 Chat Now", key="chat_now"):
+                    if st.button("💬 Chat Now about this Analysis", key="chat_now", type="primary"):
                         st.session_state['view'] = 'chat'
                         # Initialize chat history with the analysis
                         if 'chat_history' not in st.session_state:
